@@ -7,10 +7,10 @@ import java.util.regex.Pattern;
 
 public class Main {
     private static final String DEFAULT_DRIVER = "org.postgresql.Driver";
-    private static final String DEFAULT_URL = "jdbc:postgresql://localhost:5432/part4_new";
+    private static final String DEFAULT_URL = "jdbc:postgresql://localhost:5432/zapchasty";
     private static final String DEFAULT_USERNAME = "zapchasty";
     private static final String DEFAULT_PASSWORD = "zapchasty_GfhjkzYtn321";
-    private static final String path = "e:\\part4\\part4_spec\\brother\\";
+    private static final String path = "d:\\part4\\part4_spec\\xerox\\";
 
     public static void main(String[] args) {
         String driver = ((args.length > 0) ? args[0] : DEFAULT_DRIVER);
@@ -19,7 +19,7 @@ public class Main {
         String password = ((args.length > 3) ? args[3] : DEFAULT_PASSWORD);
         Connection connection = null;
 
-        int brand_id = 1; // ID ПРОИЗВОДИТЕЛЯ
+        int brand_id = 15; // ID ПРОИЗВОДИТЕЛЯ
         int model_id = 0;
 //        int part_code_id = 0;
         int detail_id = 0;
@@ -32,6 +32,8 @@ public class Main {
 
         String detName = null; //Характеристики
         String detValue = null; //Значения
+
+        int fIndex = 0;
 
         Date date = new Date();
         System.out.println("Запуск " + date.toString());
@@ -50,17 +52,20 @@ public class Main {
                     if (s.contains("_info")) {
                         detailName = s.substring(0, s.length() - 5);
 
-                        String sqlModel = "INSERT INTO all_models (name,brand_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM all_models WHERE name=? AND brand_id= ?);";
+                        System.out.println(++fIndex + ": " + detailName);
+
+//                        System.out.printf(detailName);
+                        String sqlModel = "INSERT INTO all_models (name,brand_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM all_models WHERE name=? AND brand_id=?);";
                         List modelParametrs = Arrays.asList(detailName,brand_id,detailName,brand_id);
                         update(connection, sqlModel, modelParametrs);
 
                         String sqlModelId = "SELECT id FROM all_models WHERE name = ?;";
-                        List modelIdParametrs = Arrays.asList(s);
+                        List modelIdParametrs = Arrays.asList(detailName);
                         model_id = query(connection, sqlModelId, modelIdParametrs);
 
                         //name, partcode_id, module_id, all_model_id
-                        String sqlDetails = "INSERT INTO details (name, partcode_id, module_id, all_model_id) SELECT ?, NULL, NULL, NULL WHERE NOT EXISTS (SELECT 1 FROM details WHERE name=?);";
-                        List detailsParametrs = Arrays.asList(detailName,detailName);
+                        String sqlDetails = "INSERT INTO details (name, partcode_id, module_id, all_model_id) SELECT ?, NULL, NULL, ? WHERE NOT EXISTS (SELECT 1 FROM details WHERE name=?);";
+                        List detailsParametrs = Arrays.asList(detailName, model_id, detailName);
                         update(connection,sqlDetails,detailsParametrs);
 
                         String sqlDetailId = "SELECT id FROM details WHERE name = ?;";
@@ -189,10 +194,13 @@ public class Main {
                 ps.setObject(++i, parameter);
             }
 
+//            System.out.printf(ps.toString());
+
             rs = ps.executeQuery();
             while (rs.next()) {
                 results = rs.getInt("id");
             }
+
 
         } finally {
             close(rs);
@@ -205,13 +213,16 @@ public class Main {
         int numRowsUpdated = 0;
         PreparedStatement ps = null;
         try {
+//            System.out.println(sql);
             ps = connection.prepareStatement(sql);
             int i = 0;
             for (Object parameter : parameters) {
                 ps.setObject(++i, parameter);
             }
 
+//            System.out.printf(ps.toString());
             numRowsUpdated = ps.executeUpdate();
+
         } finally {
             close(ps);
         }
