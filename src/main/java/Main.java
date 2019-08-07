@@ -7,10 +7,13 @@ import java.util.regex.Pattern;
 
 public class Main {
     private static final String DEFAULT_DRIVER = "org.postgresql.Driver";
-    private static final String DEFAULT_URL = "jdbc:postgresql://localhost:5432/zapchasty";
+//    private static final String DEFAULT_URL = "jdbc:postgresql://localhost:5432/zapchasty";
+//    private static final String DEFAULT_URL = "jdbc:postgresql://116.203.55.188:5432/zapchasty";
+    private static final String DEFAULT_URL = "jdbc:postgresql://localhost:5432/part4_new";
     private static final String DEFAULT_USERNAME = "zapchasty";
     private static final String DEFAULT_PASSWORD = "zapchasty_GfhjkzYtn321";
-    private static final String path = "D:\\part4\\part4_spec\\";
+//    private static final String path = "D:\\part4\\part4_spec\\";
+    private static final String path = "E:\\part4\\part4_spec\\";
     private static final String[] brand_list = {"brother","canon","epson","hp","konica minolta","kyocera","lexmark","oki","panasonic","ricoh","riso","samsung","sharp","toshiba","xerox"};
 
     public static void main(String[] args) {
@@ -39,6 +42,8 @@ public class Main {
         Date startTime = new Date();
         System.out.println("Started " + startTime.toString());
 
+
+
         for (int j = 0; j < brand_list.length; j++) {
             path_list = path + brand_list[j];
             brand_id = j+1;
@@ -58,42 +63,47 @@ public class Main {
 //                    System.out.println("file name: " + s);
                     s = s.substring(0, s.length() - 4);
                     if (s.contains("_info")) {
-                        detailName = s.replaceAll("_info","").trim();//.substring(0, s.length() - 5);
+                        detailName = s.replaceAll("_info","").trim();
                         detailName = detailName.replaceAll("[(-)]+","").trim();
                         detailName = detailName.replaceAll("[+]", "plus").trim();
                         detailName = detailName.replaceAll("[/]", "_").trim();
                         System.out.println(++fIndex + ": " + detailName);
+                                                                        //("(.*)-", "$1")
+                        String nDetailName = detailName.replaceAll("(-)(?!.*-)", "");
+
+                        String editSqlModelId = "SELECT id FROM all_models WHERE name = ?;";
+                        List editModelIdParametrs = Arrays.asList(nDetailName);
+                        model_id = query(connection, editSqlModelId, editModelIdParametrs);
+
+                        if (model_id == 0) {
+                            String sqlModelId = "SELECT id FROM all_models WHERE name = ?;";
+                            List modelIdParametrs = Arrays.asList(detailName);
+                            model_id = query(connection, sqlModelId, modelIdParametrs);
+                        }
+
+                        if (model_id == 0) {
+                            String sqlModel = "INSERT INTO all_models (name,brand_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM all_models WHERE name = ? AND brand_id = ?);";
+                            List modelParametrs = Arrays.asList(detailName, brand_id, detailName, brand_id);
+                            update(connection, sqlModel, modelParametrs);
 
                             String sqlModelId = "SELECT id FROM all_models WHERE name = ?;";
                             List modelIdParametrs = Arrays.asList(detailName);
                             model_id = query(connection, sqlModelId, modelIdParametrs);
+                        }
 
-                            if (model_id < 1) {
-                                String sqlModel = "INSERT INTO all_models (name,brand_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM all_models WHERE name=? AND brand_id= ?);";
-                                List modelParametrs = Arrays.asList(detailName, brand_id, detailName, brand_id);
-                                update(connection, sqlModel, modelParametrs);
+                        String sqlDetailId = "SELECT id FROM details WHERE name = ?;";
+                        List detailIdParametrs = Arrays.asList(detailName);
+                        detail_id = query(connection, sqlDetailId, detailIdParametrs);
 
-                                sqlModelId = "SELECT id FROM all_models WHERE name = ?;";
-                                modelIdParametrs = Arrays.asList(detailName);
-                                model_id = query(connection, sqlModelId, modelIdParametrs);
-                            }
+                        if (detail_id == 0) {
+                            String sqlDetails = "INSERT INTO details (name, partcode_id, module_id, all_model_id) SELECT ?, NULL, NULL, ? WHERE NOT EXISTS (SELECT 1 FROM details WHERE name = ?);";
+                            List detailsParametrs = Arrays.asList(detailName, model_id, detailName);
+                            update(connection, sqlDetails, detailsParametrs);
 
-                            detail_id = 0;
-                            String sqlDetailId = "SELECT id FROM details WHERE name = ?;";
-                            List detailIdParametrs = Arrays.asList(detailName);
+                            sqlDetailId = "SELECT id FROM details WHERE name = ?;";
+                            detailIdParametrs = Arrays.asList(detailName);
                             detail_id = query(connection, sqlDetailId, detailIdParametrs);
-
-                            if (detail_id < 1) {
-                                String sqlDetails = "INSERT INTO details (name, partcode_id, module_id, all_model_id) SELECT ?, NULL, NULL, ? WHERE NOT EXISTS (SELECT 1 FROM details WHERE name=?);";
-                                List detailsParametrs = Arrays.asList(detailName, model_id, detailName);
-                                update(connection, sqlDetails, detailsParametrs);
-
-                                sqlDetailId = "SELECT id FROM details WHERE name = ?;";
-                                detailIdParametrs = Arrays.asList(detailName);
-                                detail_id = query(connection, sqlDetailId, detailIdParametrs);
-                            }
-
-//                            System.out.println(model_id + ", " + detail_id);
+                        }
 
                         try {
                             FileInputStream fileInputStream = new FileInputStream(file.getAbsolutePath());
@@ -106,13 +116,13 @@ public class Main {
                                 for (int i = 0; i < subStr.length; i++) {
                                     if (i == 0) {
                                         detName = subStr[i];
-                                            String sqlSprDetails = "INSERT INTO spr_detail_options (name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM spr_detail_options WHERE name=?);";
-                                            List sprDetailParametrs = Arrays.asList(detName, detName);
-                                            update(connection, sqlSprDetails, sprDetailParametrs);
+                                        String sqlSprDetails = "INSERT INTO spr_detail_options (name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM spr_detail_options WHERE name=?);";
+                                        List sprDetailParametrs = Arrays.asList(detName, detName);
+                                        update(connection, sqlSprDetails, sprDetailParametrs);
 
-                                            String sqlSprDetailsId = "SELECT id FROM spr_detail_options WHERE name = ?;";
-                                            List sprDetailIdParametrs = Arrays.asList(detName);
-                                            spr_detail_option_id = query(connection, sqlSprDetailsId, sprDetailIdParametrs);
+                                        String sqlSprDetailsId = "SELECT id FROM spr_detail_options WHERE name = ?;";
+                                        List sprDetailIdParametrs = Arrays.asList(detName);
+                                        spr_detail_option_id = query(connection, sqlSprDetailsId, sprDetailIdParametrs);
 
                                     }
                                     if (i == 1) {
@@ -145,9 +155,9 @@ public class Main {
                                             List otherVal = Arrays.asList(spr_detail_option_id, detValue, parent_id, detValue);
                                             update(connection,sqlOtherVal,otherVal);
                                         }
-                                            String sqlLinkDetailsOptions = "INSERT INTO link_details_options (detail_id, detail_option_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM link_details_options WHERE detail_id=? AND detail_option_id=?);";
-                                            List linkDetailsOptions = Arrays.asList(detail_id, parent_id, detail_id, parent_id);
-                                            update(connection,sqlLinkDetailsOptions,linkDetailsOptions);
+                                        String sqlLinkDetailsOptions = "INSERT INTO link_details_options (detail_id, detail_option_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM link_details_options WHERE detail_id=? AND detail_option_id=?);";
+                                        List linkDetailsOptions = Arrays.asList(detail_id, parent_id, detail_id, parent_id);
+                                        update(connection,sqlLinkDetailsOptions,linkDetailsOptions);
                                     }
                                 }
                             }
@@ -168,6 +178,16 @@ public class Main {
         System.out.println("Finished " + endTime.toString());
         System.out.println("Started: " + startTime + ", Finished: " + endTime.toString());
 
+//        String s = "aaa i-ccccc BB-4564dn";
+////        String t = s.replaceAll("(.*)-", "$1");
+//        String t = s.replaceAll("(-)(?!.*-)", "");
+//        System.out.println(s);
+//        System.out.println(t);
+    }
+
+    public static String reg(String text){
+        text.replaceAll("(-)(?=[^-]*$)", "");
+        return text;
     }
 
     public static int getId(Connection connection,  List<Object> parameters) throws SQLException {
