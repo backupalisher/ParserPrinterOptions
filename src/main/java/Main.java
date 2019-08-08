@@ -25,7 +25,7 @@ public class Main {
 
         int brand_id = 0; // ID ПРОИЗВОДИТЕЛЯ
         int detail_id;
-//        int detail_option_id = 0;
+        int detail_option_id = 0;
         int parent_id = 0;
         int model_id;
 
@@ -154,9 +154,15 @@ public class Main {
                                             String sqlOtherVal = "INSERT INTO detail_options (spr_detail_option_id, name, parent_id) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM detail_options WHERE name=?);";
                                             List otherVal = Arrays.asList(spr_detail_option_id, detValue, parent_id, detValue);
                                             update(connection,sqlOtherVal,otherVal);
+
+                                            List getValName = Arrays.asList(detValue);
+                                            detail_option_id = getId(connection,getValName);
                                         }
                                         String sqlLinkDetailsOptions = "INSERT INTO link_details_options (detail_id, detail_option_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM link_details_options WHERE detail_id=? AND detail_option_id=?);";
-                                        List linkDetailsOptions = Arrays.asList(detail_id, parent_id, detail_id, parent_id);
+                                        List linkDetailsOptions2 = Arrays.asList(detail_id, parent_id, detail_id, parent_id);
+                                        update(connection,sqlLinkDetailsOptions,linkDetailsOptions2);
+                                        
+                                        List linkDetailsOptions = Arrays.asList(detail_id, detail_option_id, detail_id, detail_option_id);
                                         update(connection,sqlLinkDetailsOptions,linkDetailsOptions);
                                     }
                                 }
