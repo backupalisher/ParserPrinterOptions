@@ -12,8 +12,8 @@ public class Main {
 //    private static final String DEFAULT_URL = "jdbc:postgresql://localhost:5432/part4_new";
     private static final String DEFAULT_USERNAME = "zapchasty";
     private static final String DEFAULT_PASSWORD = "zapchasty_GfhjkzYtn321";
-//    private static final String path = "D:\\part4\\part4_spec\\";
-    private static final String path = "E:\\part4\\part4_spec\\";
+    private static final String path = "e:\\part4\\part4_spec\\";
+//    private static final String path = "E:\\part4\\test\\";
     private static final String[] brand_list = {"brother","canon","epson","hp","konica minolta","kyocera","lexmark","oki","panasonic","ricoh","riso","samsung","sharp","toshiba","xerox"};
     private static BufferedWriter fw;
 
@@ -39,10 +39,11 @@ public class Main {
 
         String detName = null; //Характеристики
         String detValue; //Значения
+        String subCaptionValue = null; //Для измениния повторяющихся По Х, По Y и т.д.
 
         Date startTime = new Date();
         System.out.println("Started " + startTime.toString());
-        fw = new BufferedWriter(new PrintWriter("log"));
+//        fw = new BufferedWriter(new PrintWriter("log"));
 
         for (int j = 0; j < brand_list.length; j++) {
             path_list = path + brand_list[j];
@@ -64,32 +65,31 @@ public class Main {
                     s = s.substring(0, s.length() - 4);
                     if (s.contains("_info")) {
                         detailName = s.replaceAll("_info","").trim();
-                        detailName = detailName.replaceAll("[(-)]+","").trim();
-                        detailName = detailName.replaceAll("[+]", "plus").trim();
-                        detailName = detailName.replaceAll("[/]", "_").trim();
+                        detailName = detailName.replaceAll("([a-zA-Z0-9]+ мм)? \\([a-zA-Z0-9]+\\)", "").trim();
+                        detailName = detailName.replaceAll("[+]", "plus");
+                        detailName = detailName.replaceAll("[/]", "_");
                         System.out.println(++fIndex + ": " + detailName);
-
                                                                         //("(.*)-", "$1")
                         String nDetailName = detailName.replaceAll("(-)(?!.*-)", "");
 
-                        String sqlModelId = "SELECT id FROM all_models WHERE name = ?;";
+                        String sqlModelId = "SELECT id FROM all_models WHERE LOWER(name) = LOWER(?);";
                         List modelIdParametrs = Arrays.asList(detailName);
                         model_id = query(connection, sqlModelId, modelIdParametrs);
 
                         if (model_id == 0) {
-                            String nSqlModelId = "SELECT id FROM all_models WHERE name = ?;";
+                            String nSqlModelId = "SELECT id FROM all_models WHERE LOWER(name) = LOWER(?);";
                             List nModelIdParametrs = Arrays.asList(nDetailName);
                             model_id = query(connection, nSqlModelId, nModelIdParametrs);
                         }
 
                         if (model_id == 0) {
-                            String sqlModel = "INSERT INTO all_models (name,brand_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM all_models WHERE name = ? AND brand_id = ?);";
-                            List modelParametrs = Arrays.asList(detailName, brand_id, detailName, brand_id);
+                            String sqlModel = "INSERT INTO all_models (name, brand_id)  SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM all_models WHERE LOWER(name) = LOWER(?));";
+                            List modelParametrs = Arrays.asList(detailName, brand_id, detailName);
                             update(connection, sqlModel, modelParametrs);
 
-                            String addSqlModelId = "SELECT id FROM all_models WHERE name = ?;";
-                            List addModelIdParametrs = Arrays.asList(detailName);
-                            model_id = query(connection, addSqlModelId, addModelIdParametrs);
+                            String add_sqlModelId = "SELECT id FROM all_models WHERE LOWER(name) = LOWER(?);";
+                            List add_modelIdParametrs = Arrays.asList(detailName);
+                            model_id = query(connection, add_sqlModelId, add_modelIdParametrs);
                         }
 
                         String sqlDetailId = "SELECT id FROM details WHERE name = ?;";
@@ -122,53 +122,66 @@ public class Main {
                                 subStr = strLine.split(";");
                                 for (int i = 0; i < subStr.length; i++) {
                                     if (i == 0) {
-                                        detName = subStr[i];
-                                        String sqlSprDetails = "INSERT INTO spr_detail_options (name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM spr_detail_options WHERE name=?);";
+                                        detName = subStr[i].trim();
+
+                                        String[] descList = {"По X", "По Y", "По Х", "Стандартная", "Минимальная", "Максимальная", "A4", "A3", "A2", "A1", "A0", "A6", "A5", "меньше A6", "По Х (улучшенное)", "По Y (улучшенное)"};
+
+                                        for(int dl = 0; dl < descList.length; dl++){
+                                            if (detName.equals(descList[dl])){
+                                                if (detName.equals(descList[2])){
+                                                    detName = descList[0];
+                                                }
+                                                detName = subCaptionValue + " " + detName;
+                                                break;
+                                            }
+                                        }
+
+                                        String sqlSprDetails = "INSERT INTO spr_detail_options (name) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM spr_detail_options WHERE LOWER(name) = LOWER(?));";
                                         List sprDetailParametrs = Arrays.asList(detName, detName);
                                         update(connection, sqlSprDetails, sprDetailParametrs);
 
-                                        String sqlSprDetailsId = "SELECT id FROM spr_detail_options WHERE name = ?;";
+                                        String sqlSprDetailsId = "SELECT id FROM spr_detail_options WHERE LOWER(name) = LOWER(?);";
                                         List sprDetailIdParametrs = Arrays.asList(detName);
                                         spr_detail_option_id = query(connection, sqlSprDetailsId, sprDetailIdParametrs);
-
-                                        fw.write(detailName + ": " + detName + "; " + spr_detail_option_id + "\r\n");
-
                                     }
                                     if (i == 1) {
-                                        detValue = subStr[i];
+                                        detValue = subStr[i].trim();
 
                                         String sqlDetailVal;
                                         List detailValParametrs;
 
                                         if (detName.equals("Caption")) {
-                                            detValue = subStr[i].replaceAll("[(-)]+","").trim();
-                                            detValue = detValue.replaceAll("[+]", "plus");
+                                            detValue = subStr[i].replaceAll("[+]", "plus");
                                             detValue = detValue.replaceAll("[/]", "_");
+                                            detValue = detValue.replaceAll("([a-zA-Z0-9]+ мм)? \\([a-zA-Z0-9]+\\)", "").trim();
                                             detValue = detValue.replaceAll(detailName,"").trim();
 
-                                            sqlDetailVal = "INSERT INTO detail_options (spr_detail_option_id, name) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM detail_options WHERE name=?);";
+                                            sqlDetailVal = "INSERT INTO detail_options (spr_detail_option_id, name) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM detail_options WHERE LOWER(name) = LOWER(?));";
                                             detailValParametrs = Arrays.asList(spr_detail_option_id, detValue, detValue);
                                             update(connection, sqlDetailVal, detailValParametrs);
 
                                             List getValName = Arrays.asList(detValue);
                                             parent_id = getId(connection,getValName);
                                         } else if (detName.equals("SubCaption")) {
-                                            sqlDetailVal = "INSERT INTO detail_options (spr_detail_option_id, name, parent_id) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM detail_options WHERE name=?);";
+                                            sqlDetailVal = "INSERT INTO detail_options (spr_detail_option_id, name, parent_id) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM detail_options WHERE LOWER(name) = LOWER(?));";
                                             detailValParametrs = Arrays.asList(spr_detail_option_id, detValue, parent_id, detValue);
                                             update(connection, sqlDetailVal, detailValParametrs);
 
+                                            subCaptionValue = subStr[1];
                                             List getValName = Arrays.asList(detValue);
                                             parent_id = getId(connection,getValName);
+//                                            fw.write("parent_id: " + parent_id+"\r\n");
                                         } else {
-                                            String sqlOtherVal = "INSERT INTO detail_options (spr_detail_option_id, name, parent_id) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM detail_options WHERE name=?);";
-                                            List otherVal = Arrays.asList(spr_detail_option_id, detValue, parent_id, detValue);
+                                            String sqlOtherVal = "INSERT INTO detail_options (spr_detail_option_id, name, parent_id) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM detail_options WHERE LOWER(name) = LOWER(?) AND spr_detail_option_id = ?);";
+                                            List otherVal = Arrays.asList(spr_detail_option_id, detValue, parent_id, detValue, spr_detail_option_id);
                                             update(connection,sqlOtherVal,otherVal);
 
-                                            List getValName = Arrays.asList(detValue);
-                                            detail_option_id = getId(connection,getValName);
+                                            String sqlValName = "SELECT id FROM detail_options WHERE LOWER(name) = LOWER(?) AND spr_detail_option_id = ?";
+                                            List getValName = Arrays.asList(detValue, spr_detail_option_id);
+                                            detail_option_id = query(connection, sqlValName, getValName);
 
                                             if (detail_option_id != 0) {
-                                                String sqlLinkDetailsOptions = "INSERT INTO link_details_options (detail_id, detail_option_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM link_details_options WHERE detail_id=? AND detail_option_id=?);";
+                                                String sqlLinkDetailsOptions = "INSERT INTO link_details_options (detail_id, detail_option_id) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM link_details_options WHERE detail_id = ? AND detail_option_id = ?);";
                                                 List linkDetailsOptions = Arrays.asList(detail_id, detail_option_id, detail_id, detail_option_id);
                                                 update(connection, sqlLinkDetailsOptions, linkDetailsOptions);
                                             }
@@ -179,7 +192,6 @@ public class Main {
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-
                     }
                 }
 
@@ -189,7 +201,7 @@ public class Main {
             }
         }
 
-        fw.close();
+//        fw.close();
         Date endTime = new Date();
         System.out.println("Finished " + endTime.toString());
         System.out.println("Started: " + startTime + ", Finished: " + endTime.toString());
@@ -201,7 +213,7 @@ public class Main {
         ResultSet rs = null;
         try {
 //            ps = connection.prepareStatement("SELECT id FROM detail_options WHERE name = ?;");
-            ps = connection.prepareStatement("SELECT id FROM detail_options WHERE name = ?;");
+            ps = connection.prepareStatement("SELECT id FROM detail_options WHERE LOWER(name) = LOWER(?);");
             int i = 0;
 
             for (Object parameter : parameters) {
